@@ -1,4 +1,3 @@
-
 type BottleWrapInput = {
   bodyCircumference: number;
   neckCircumference: number;
@@ -12,12 +11,27 @@ type BottleWrapOutput = {
   bodyCircumference: number;
   bodyHeight: number;
   totalWrapHeight: number;
-  innerRadius: number;
-  outerRadius: number;
-  sweepAngle: number;
+  innerRadius: number | null;
+  outerRadius: number | null;
+  sweepAngle: number | null;
 };
 
 export function calculateBottleWrap(inputs: BottleWrapInput): BottleWrapOutput {
+  // Reject measurements that create a neck wider than the bottle body
+  if (inputs.neckCircumference > inputs.bodyCircumference) {
+    throw new Error("neck must be smaller than body");
+  }
+  // Handle a cylindrical bottle by returning a rectangular wrap
+  if (inputs.neckCircumference === inputs.bodyCircumference) {
+    return {
+      bodyCircumference: inputs.bodyCircumference,
+      bodyHeight: inputs.bodyHeight,
+      totalWrapHeight: inputs.bodyHeight + inputs.shoulderHeight,
+      innerRadius: null,
+      outerRadius: null,
+      sweepAngle: null,
+    };
+  }
   //  Step 1: Convert the body and neck circumferences into radii
   const bodyRadius = inputs.bodyCircumference / (2 * Math.PI);
   const neckRadius = inputs.neckCircumference / (2 * Math.PI);
@@ -38,7 +52,7 @@ export function calculateBottleWrap(inputs: BottleWrapInput): BottleWrapOutput {
   const sweepAngle =
     (inputs.bodyCircumference / (2 * Math.PI * outerRadius)) * 360;
 
-  // Calculate the total height, including bleed on both edges
+  // Calculate the total height using the body and shoulder heights
   const totalWrapHeight = inputs.bodyHeight + inputs.shoulderHeight;
 
   return {
@@ -50,4 +64,5 @@ export function calculateBottleWrap(inputs: BottleWrapInput): BottleWrapOutput {
     sweepAngle,
   };
 }
+
 
