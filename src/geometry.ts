@@ -7,7 +7,7 @@ type BottleWrapInput = {
   seamOverlap: number;
 };
 
-type BottleWrapOutput = {
+export type BottleWrapOutput = {
   bodyCircumference: number;
   bodyHeight: number;
   totalWrapHeight: number;
