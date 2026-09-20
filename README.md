@@ -1,76 +1,55 @@
-# React + TypeScript + Vite
+# BottleWrap Studio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![CI](https://github.com/Lens2199/bottlewrap-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Lens2199/bottlewrap-studio/actions/workflows/ci.yml)
 
-Currently, two official plugins are available:
+BottleWrap Studio was created to solve a practical problem: guessing bottle-wrap templates in design software wastes paper and produces inaccurate labels.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The app converts real bottle measurements into a printable SVG template. It supports cylindrical and tapered bottles, displays the result in a live preview, and includes bleed and seam overlap for printing and installation.
 
-## React Compiler
+## Live Demo
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+[Open BottleWrap Studio](https://bottlewrap-studio.vercel.app)
 
-## Expanding the ESLint configuration
+## Screenshot
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+![BottleWrap Studio interface](docs/bottlewrap-studio.png)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Features
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Generates body and shoulder templates from real measurements
+- Supports cylindrical and tapered bottles
+- Adds print bleed and a constant-width seam tab
+- Displays an interactive SVG preview
+- Exports a correctly sized SVG for printing
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Geometry
 
-```
+A tapered bottle shoulder becomes part of a cone when extended toward an imaginary apex. The app uses similar triangles to calculate the cone’s inner and outer radii, then calculates the sweep angle needed for the shoulder band to match the bottle circumference.
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+The shoulder outline combines an outer arc, a reversed inner arc, and two straight edges. Bleed expands both radii and the straight edges, while seam overlap extends one edge using a perpendicular unit vector.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## What I Learned
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+An early version produced a sweep angle greater than 360 degrees. That bug helped me realize that the tapered shoulder could not be calculated as a flat ring—the missing part was the cone’s imaginary apex.
 
-```
-# bottlewrap-studio
+I also learned how to build SVG polygons in the correct point order, use perpendicular vectors for constant-width padding, and separate geometry calculations from rendering logic.
+
+Finally, I added automated tests and a GitHub Actions workflow so every push and pull request runs the test suite and verifies the production build.
+
+## Tech Stack
+
+- React
+- TypeScript
+- Vite
+- SVG
+- Vitest
+- GitHub Actions
+- Vercel
+
+## Run Locally
+
+Clone the repository:
+
+```bash
+git clone https://github.com/Lens2199/bottlewrap-studio.git
+cd bottlewrap-studio
