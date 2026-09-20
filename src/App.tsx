@@ -152,7 +152,7 @@ function App() {
   }
 
   return (
-    <main>
+    <main className="app">
       <h1>BottleWrap Studio</h1>
 
       <div className="workspace">
