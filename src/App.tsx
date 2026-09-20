@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { calculateBottleWrap, type BottleWrapOutput } from "./geometry";
-import { generateWrapOutline, type WrapOutline } from "./outline";
+import {
+  calculateBottleWrap,
+  type BottleWrapOutput,
+} from "./geometry";
+import {
+  generateWrapOutline,
+  type WrapOutline,
+} from "./outline";
+import { applyPadding } from "./padding";
 import {
   calculateBounds,
   generateSvg,
@@ -10,11 +17,15 @@ import {
 
 type NumberFieldProps = {
   label: string;
-  value: number;
-  onChange: (newValue: number) => void;
+  value: string;
+  onChange: (newValue: string) => void;
 };
 
-function NumberField({ label, value, onChange }: NumberFieldProps) {
+function NumberField({
+  label,
+  value,
+  onChange,
+}: NumberFieldProps) {
   return (
     <label>
       {label}:
@@ -23,7 +34,7 @@ function NumberField({ label, value, onChange }: NumberFieldProps) {
         step="any"
         value={value}
         onChange={(event) => {
-          onChange(Number(event.target.value));
+          onChange(event.target.value);
         }}
       />
     </label>
@@ -40,7 +51,10 @@ function WrapPreview({ outline }: WrapPreviewProps) {
   const allPoints =
     laidOutOutline.shoulder === null
       ? laidOutOutline.body
-      : [...laidOutOutline.body, ...laidOutOutline.shoulder];
+      : [
+          ...laidOutOutline.body,
+          ...laidOutOutline.shoulder,
+        ];
 
   const bounds = calculateBounds(allPoints);
 
@@ -56,7 +70,7 @@ function WrapPreview({ outline }: WrapPreviewProps) {
       <polygon
         points={pointsToString(laidOutOutline.body)}
         fill="none"
-        stroke="black"
+        stroke="currentColor"
         strokeWidth={0.02}
       />
 
@@ -64,7 +78,7 @@ function WrapPreview({ outline }: WrapPreviewProps) {
         <polygon
           points={pointsToString(laidOutOutline.shoulder)}
           fill="none"
-          stroke="black"
+          stroke="currentColor"
           strokeWidth={0.02}
         />
       )}
@@ -74,12 +88,12 @@ function WrapPreview({ outline }: WrapPreviewProps) {
 
 function App() {
   const [inputs, setInputs] = useState({
-    bodyCircumference: 8.1,
-    neckCircumference: 3.4,
-    shoulderHeight: 0.85,
-    bodyHeight: 5.9,
-    bleed: 0,
-    seamOverlap: 0,
+    bodyCircumference: "8.1",
+    neckCircumference: "3.4",
+    shoulderHeight: "0.85",
+    bodyHeight: "5.9",
+    bleed: "0",
+    seamOverlap: "0",
   });
 
   let geometry: BottleWrapOutput | null = null;
@@ -87,11 +101,46 @@ function App() {
   let errorMessage: string | null = null;
 
   try {
-    geometry = calculateBottleWrap(inputs);
-    outline = generateWrapOutline(geometry);
+    const hasEmptyField = Object.values(inputs).some(
+      (value) => value.trim() === "",
+    );
+
+    if (hasEmptyField) {
+      throw new Error("Enter all measurements");
+    }
+
+    const numericInputs = {
+      bodyCircumference: Number(inputs.bodyCircumference),
+      neckCircumference: Number(inputs.neckCircumference),
+      shoulderHeight: Number(inputs.shoulderHeight),
+      bodyHeight: Number(inputs.bodyHeight),
+      bleed: Number(inputs.bleed),
+      seamOverlap: Number(inputs.seamOverlap),
+    };
+
+    const hasInvalidNumber = Object.values(numericInputs).some(
+      (value) => !Number.isFinite(value),
+    );
+
+    if (hasInvalidNumber) {
+      throw new Error("Enter valid measurements");
+    }
+
+    geometry = calculateBottleWrap(numericInputs);
+
+    const originalOutline = generateWrapOutline(geometry);
+
+    outline = applyPadding(
+      originalOutline,
+      geometry,
+      numericInputs.bleed,
+      numericInputs.seamOverlap,
+    );
   } catch (error) {
     errorMessage =
-      error instanceof Error ? error.message : "Invalid bottle measurements";
+      error instanceof Error
+        ? error.message
+        : "Invalid bottle measurements";
   }
 
   function downloadSvg() {
@@ -185,13 +234,20 @@ function App() {
         }}
       />
 
-      {errorMessage !== null && <p role="alert">{errorMessage}</p>}
-
-      {geometry !== null && (
-        <p>Sweep angle: {geometry.sweepAngle ?? "Not applicable"}</p>
+      {errorMessage !== null && (
+        <p role="alert">{errorMessage}</p>
       )}
 
-      {outline !== null && <WrapPreview outline={outline} />}
+      {geometry !== null && (
+        <p>
+          Sweep angle:{" "}
+          {geometry.sweepAngle ?? "Not applicable"}
+        </p>
+      )}
+
+      {outline !== null && (
+        <WrapPreview outline={outline} />
+      )}
 
       {outline !== null && (
         <button type="button" onClick={downloadSvg}>
