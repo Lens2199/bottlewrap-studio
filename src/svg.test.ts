@@ -30,8 +30,6 @@ describe("generateSvg", () => {
     const outline = generateWrapOutline(geometry);
     const svg = generateSvg(outline);
 
-    console.log(svg);
-
     const polygonCount = svg.split("<polygon").length - 1;
 
     expect(polygonCount).toBe(2);
