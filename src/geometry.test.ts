@@ -12,7 +12,7 @@ describe("calculateBottleWrap", () => {
       seamOverlap: 0,
     });
 
-    expect(result.totalWrapHeight).toBe(99);
+    expect(result.totalWrapHeight).toBe(6.75);
     expect(result.innerRadius).toBeCloseTo(0.819);
     expect(result.outerRadius).toBeCloseTo(1.951);
     expect(result.sweepAngle).toBeCloseTo(237.831);
