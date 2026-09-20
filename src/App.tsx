@@ -1,12 +1,6 @@
 import { useState } from "react";
-import {
-  calculateBottleWrap,
-  type BottleWrapOutput,
-} from "./geometry";
-import {
-  generateWrapOutline,
-  type WrapOutline,
-} from "./outline";
+import { calculateBottleWrap, type BottleWrapOutput } from "./geometry";
+import { generateWrapOutline, type WrapOutline } from "./outline";
 import { applyPadding } from "./padding";
 import {
   calculateBounds,
@@ -14,6 +8,7 @@ import {
   layoutWrapOutline,
   pointsToString,
 } from "./svg";
+import "./App.css";
 
 type NumberFieldProps = {
   label: string;
@@ -21,14 +16,11 @@ type NumberFieldProps = {
   onChange: (newValue: string) => void;
 };
 
-function NumberField({
-  label,
-  value,
-  onChange,
-}: NumberFieldProps) {
+function NumberField({ label, value, onChange }: NumberFieldProps) {
   return (
-    <label>
-      {label}:
+    <label className="field">
+      <span>{label}</span>
+
       <input
         type="number"
         step="any"
@@ -51,10 +43,7 @@ function WrapPreview({ outline }: WrapPreviewProps) {
   const allPoints =
     laidOutOutline.shoulder === null
       ? laidOutOutline.body
-      : [
-          ...laidOutOutline.body,
-          ...laidOutOutline.shoulder,
-        ];
+      : [...laidOutOutline.body, ...laidOutOutline.shoulder];
 
   const bounds = calculateBounds(allPoints);
 
@@ -138,9 +127,7 @@ function App() {
     );
   } catch (error) {
     errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Invalid bottle measurements";
+      error instanceof Error ? error.message : "Invalid bottle measurements";
   }
 
   function downloadSvg() {
@@ -165,96 +152,104 @@ function App() {
   }
 
   return (
-    <>
+    <main>
       <h1>BottleWrap Studio</h1>
 
-      <NumberField
-        label="Body circumference"
-        value={inputs.bodyCircumference}
-        onChange={(newValue) => {
-          setInputs({
-            ...inputs,
-            bodyCircumference: newValue,
-          });
-        }}
-      />
+      <div className="workspace">
+        <section className="controls">
+          <NumberField
+            label="Body circumference"
+            value={inputs.bodyCircumference}
+            onChange={(newValue) => {
+              setInputs({
+                ...inputs,
+                bodyCircumference: newValue,
+              });
+            }}
+          />
 
-      <NumberField
-        label="Neck circumference"
-        value={inputs.neckCircumference}
-        onChange={(newValue) => {
-          setInputs({
-            ...inputs,
-            neckCircumference: newValue,
-          });
-        }}
-      />
+          <NumberField
+            label="Neck circumference"
+            value={inputs.neckCircumference}
+            onChange={(newValue) => {
+              setInputs({
+                ...inputs,
+                neckCircumference: newValue,
+              });
+            }}
+          />
 
-      <NumberField
-        label="Shoulder height"
-        value={inputs.shoulderHeight}
-        onChange={(newValue) => {
-          setInputs({
-            ...inputs,
-            shoulderHeight: newValue,
-          });
-        }}
-      />
+          <NumberField
+            label="Shoulder height"
+            value={inputs.shoulderHeight}
+            onChange={(newValue) => {
+              setInputs({
+                ...inputs,
+                shoulderHeight: newValue,
+              });
+            }}
+          />
 
-      <NumberField
-        label="Body height"
-        value={inputs.bodyHeight}
-        onChange={(newValue) => {
-          setInputs({
-            ...inputs,
-            bodyHeight: newValue,
-          });
-        }}
-      />
+          <NumberField
+            label="Body height"
+            value={inputs.bodyHeight}
+            onChange={(newValue) => {
+              setInputs({
+                ...inputs,
+                bodyHeight: newValue,
+              });
+            }}
+          />
 
-      <NumberField
-        label="Bleed"
-        value={inputs.bleed}
-        onChange={(newValue) => {
-          setInputs({
-            ...inputs,
-            bleed: newValue,
-          });
-        }}
-      />
+          <NumberField
+            label="Bleed"
+            value={inputs.bleed}
+            onChange={(newValue) => {
+              setInputs({
+                ...inputs,
+                bleed: newValue,
+              });
+            }}
+          />
 
-      <NumberField
-        label="Seam overlap"
-        value={inputs.seamOverlap}
-        onChange={(newValue) => {
-          setInputs({
-            ...inputs,
-            seamOverlap: newValue,
-          });
-        }}
-      />
+          <NumberField
+            label="Seam overlap"
+            value={inputs.seamOverlap}
+            onChange={(newValue) => {
+              setInputs({
+                ...inputs,
+                seamOverlap: newValue,
+              });
+            }}
+          />
 
-      {errorMessage !== null && (
-        <p role="alert">{errorMessage}</p>
-      )}
+          {errorMessage !== null && (
+            <p className="error" role="alert">
+              {errorMessage}
+            </p>
+          )}
 
-      {geometry !== null && (
-        <p>
-          Sweep angle:{" "}
-          {geometry.sweepAngle ?? "Not applicable"}
-        </p>
-      )}
+          {geometry !== null && (
+            <p className="stat">
+              Sweep angle:{" "}
+              {geometry.sweepAngle === null
+                ? "Not applicable"
+                : geometry.sweepAngle.toFixed(1)}
+            </p>
+          )}
+        </section>
 
-      {outline !== null && (
-        <WrapPreview outline={outline} />
-      )}
+        <section className="preview">
+          {outline !== null && <WrapPreview outline={outline} />}
 
-      {outline !== null && (
-        <button type="button" onClick={downloadSvg}>
-          Download SVG
-        </button>
-      )}
-    </>
+          {outline !== null && (
+            <button className="download" type="button" onClick={downloadSvg}>
+              Download SVG
+            </button>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
 
