@@ -96,6 +96,23 @@ body {
   border-radius: 6px;
 }
 
+.field select {
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--text);
+  font: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.field select:focus-visible {
+  border-color: transparent;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .field input:focus-visible {
   border-color: transparent;
   outline: 2px solid var(--accent);

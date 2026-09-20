@@ -35,7 +35,7 @@ describe("generateSvg", () => {
     expect(polygonCount).toBe(2);
   });
 
-  it("creates one polygon for a cylinder", () => {
+  it("creates one polygon for a cylinder in inches", () => {
     const geometry = calculateBottleWrap({
       bodyCircumference: 12,
       neckCircumference: 12,
@@ -51,5 +51,24 @@ describe("generateSvg", () => {
     const polygonCount = svg.split("<polygon").length - 1;
 
     expect(polygonCount).toBe(1);
+    expect(svg).toContain('width="12in"');
+    expect(svg).toContain('height="5in"');
+  });
+
+  it("uses centimeters when centimeters are selected", () => {
+    const geometry = calculateBottleWrap({
+      bodyCircumference: 12,
+      neckCircumference: 12,
+      shoulderHeight: 0,
+      bodyHeight: 5,
+      bleed: 0,
+      seamOverlap: 0,
+    });
+
+    const outline = generateWrapOutline(geometry);
+    const svg = generateSvg(outline, "cm");
+
+    expect(svg).toContain('width="12cm"');
+    expect(svg).toContain('height="5cm"');
   });
 });

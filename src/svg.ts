@@ -1,6 +1,8 @@
 import type { WrapOutline } from "./outline";
 import type { Point } from "./points";
 
+export type MeasurementUnit = "in" | "cm";
+
 export type Bounds = {
   minX: number;
   maxX: number;
@@ -67,7 +69,10 @@ export function layoutWrapOutline(
   };
 }
 
-export function generateSvg(outline: WrapOutline): string {
+export function generateSvg(
+  outline: WrapOutline,
+  unit: MeasurementUnit = "in",
+): string {
   const laidOutOutline = layoutWrapOutline(outline);
 
   const allPoints =
@@ -93,8 +98,8 @@ export function generateSvg(outline: WrapOutline): string {
       : `<polygon points="${shoulderPoints}" fill="none" stroke="black" stroke-width="0.02" />`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg"
-  width="${bounds.width}in"
-  height="${bounds.height}in"
+  width="${bounds.width}${unit}"
+  height="${bounds.height}${unit}"
   viewBox="${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}">
   <polygon points="${bodyPoints}" fill="none" stroke="black" stroke-width="0.02" />
   ${shoulderPolygon}

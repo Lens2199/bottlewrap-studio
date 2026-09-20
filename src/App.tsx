@@ -1,12 +1,19 @@
 import { useState } from "react";
-import { calculateBottleWrap, type BottleWrapOutput } from "./geometry";
-import { generateWrapOutline, type WrapOutline } from "./outline";
+import {
+  calculateBottleWrap,
+  type BottleWrapOutput,
+} from "./geometry";
+import {
+  generateWrapOutline,
+  type WrapOutline,
+} from "./outline";
 import { applyPadding } from "./padding";
 import {
   calculateBounds,
   generateSvg,
   layoutWrapOutline,
   pointsToString,
+  type MeasurementUnit,
 } from "./svg";
 import "./App.css";
 
@@ -16,7 +23,11 @@ type NumberFieldProps = {
   onChange: (newValue: string) => void;
 };
 
-function NumberField({ label, value, onChange }: NumberFieldProps) {
+function NumberField({
+  label,
+  value,
+  onChange,
+}: NumberFieldProps) {
   return (
     <label className="field">
       <span>{label}</span>
@@ -43,7 +54,10 @@ function WrapPreview({ outline }: WrapPreviewProps) {
   const allPoints =
     laidOutOutline.shoulder === null
       ? laidOutOutline.body
-      : [...laidOutOutline.body, ...laidOutOutline.shoulder];
+      : [
+          ...laidOutOutline.body,
+          ...laidOutOutline.shoulder,
+        ];
 
   const bounds = calculateBounds(allPoints);
 
@@ -76,6 +90,9 @@ function WrapPreview({ outline }: WrapPreviewProps) {
 }
 
 function App() {
+  const [unit, setUnit] =
+    useState<MeasurementUnit>("in");
+
   const [inputs, setInputs] = useState({
     bodyCircumference: "8.1",
     neckCircumference: "3.4",
@@ -107,9 +124,9 @@ function App() {
       seamOverlap: Number(inputs.seamOverlap),
     };
 
-    const hasInvalidNumber = Object.values(numericInputs).some(
-      (value) => !Number.isFinite(value),
-    );
+    const hasInvalidNumber = Object.values(
+      numericInputs,
+    ).some((value) => !Number.isFinite(value));
 
     if (hasInvalidNumber) {
       throw new Error("Enter valid measurements");
@@ -117,7 +134,8 @@ function App() {
 
     geometry = calculateBottleWrap(numericInputs);
 
-    const originalOutline = generateWrapOutline(geometry);
+    const originalOutline =
+      generateWrapOutline(geometry);
 
     outline = applyPadding(
       originalOutline,
@@ -127,7 +145,9 @@ function App() {
     );
   } catch (error) {
     errorMessage =
-      error instanceof Error ? error.message : "Invalid bottle measurements";
+      error instanceof Error
+        ? error.message
+        : "Invalid bottle measurements";
   }
 
   function downloadSvg() {
@@ -135,7 +155,7 @@ function App() {
       return;
     }
 
-    const svgString = generateSvg(outline);
+    const svgString = generateSvg(outline, unit);
 
     const blob = new Blob([svgString], {
       type: "image/svg+xml",
@@ -157,8 +177,24 @@ function App() {
 
       <div className="workspace">
         <section className="controls">
+          <label className="field">
+            <span>Measurement unit</span>
+
+            <select
+              value={unit}
+              onChange={(event) => {
+                setUnit(
+                  event.target.value as MeasurementUnit,
+                );
+              }}
+            >
+              <option value="in">Inches</option>
+              <option value="cm">Centimeters</option>
+            </select>
+          </label>
+
           <NumberField
-            label="Body circumference"
+            label={`Body circumference (${unit})`}
             value={inputs.bodyCircumference}
             onChange={(newValue) => {
               setInputs({
@@ -169,7 +205,7 @@ function App() {
           />
 
           <NumberField
-            label="Neck circumference"
+            label={`Neck circumference (${unit})`}
             value={inputs.neckCircumference}
             onChange={(newValue) => {
               setInputs({
@@ -180,7 +216,7 @@ function App() {
           />
 
           <NumberField
-            label="Shoulder height"
+            label={`Shoulder height (${unit})`}
             value={inputs.shoulderHeight}
             onChange={(newValue) => {
               setInputs({
@@ -191,7 +227,7 @@ function App() {
           />
 
           <NumberField
-            label="Body height"
+            label={`Body height (${unit})`}
             value={inputs.bodyHeight}
             onChange={(newValue) => {
               setInputs({
@@ -202,7 +238,7 @@ function App() {
           />
 
           <NumberField
-            label="Bleed"
+            label={`Bleed (${unit})`}
             value={inputs.bleed}
             onChange={(newValue) => {
               setInputs({
@@ -213,7 +249,7 @@ function App() {
           />
 
           <NumberField
-            label="Seam overlap"
+            label={`Seam overlap (${unit})`}
             value={inputs.seamOverlap}
             onChange={(newValue) => {
               setInputs({
@@ -234,16 +270,22 @@ function App() {
               Sweep angle:{" "}
               {geometry.sweepAngle === null
                 ? "Not applicable"
-                : geometry.sweepAngle.toFixed(1)}
+                : `${geometry.sweepAngle.toFixed(1)}°`}
             </p>
           )}
         </section>
 
         <section className="preview">
-          {outline !== null && <WrapPreview outline={outline} />}
+          {outline !== null && (
+            <WrapPreview outline={outline} />
+          )}
 
           {outline !== null && (
-            <button className="download" type="button" onClick={downloadSvg}>
+            <button
+              className="download"
+              type="button"
+              onClick={downloadSvg}
+            >
               Download SVG
             </button>
           )}
