@@ -1,14 +1,9 @@
 import { useState } from "react";
-import {
-  calculateBottleWrap,
-  type BottleWrapOutput,
-} from "./geometry";
-import {
-  generateWrapOutline,
-  type WrapOutline,
-} from "./outline";
+import { calculateBottleWrap, type BottleWrapOutput } from "./geometry";
+import { generateWrapOutline, type WrapOutline } from "./outline";
 import {
   calculateBounds,
+  generateSvg,
   layoutWrapOutline,
   pointsToString,
 } from "./svg";
@@ -19,11 +14,7 @@ type NumberFieldProps = {
   onChange: (newValue: number) => void;
 };
 
-function NumberField({
-  label,
-  value,
-  onChange,
-}: NumberFieldProps) {
+function NumberField({ label, value, onChange }: NumberFieldProps) {
   return (
     <label>
       {label}:
@@ -49,10 +40,7 @@ function WrapPreview({ outline }: WrapPreviewProps) {
   const allPoints =
     laidOutOutline.shoulder === null
       ? laidOutOutline.body
-      : [
-          ...laidOutOutline.body,
-          ...laidOutOutline.shoulder,
-        ];
+      : [...laidOutOutline.body, ...laidOutOutline.shoulder];
 
   const bounds = calculateBounds(allPoints);
 
@@ -103,9 +91,28 @@ function App() {
     outline = generateWrapOutline(geometry);
   } catch (error) {
     errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Invalid bottle measurements";
+      error instanceof Error ? error.message : "Invalid bottle measurements";
+  }
+
+  function downloadSvg() {
+    if (outline === null) {
+      return;
+    }
+
+    const svgString = generateSvg(outline);
+
+    const blob = new Blob([svgString], {
+      type: "image/svg+xml",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "bottle-wrap.svg";
+    link.click();
+
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -178,18 +185,19 @@ function App() {
         }}
       />
 
-      {errorMessage !== null && (
-        <p role="alert">{errorMessage}</p>
-      )}
+      {errorMessage !== null && <p role="alert">{errorMessage}</p>}
 
       {geometry !== null && (
-        <p>
-          Sweep angle:{" "}
-          {geometry.sweepAngle ?? "Not applicable"}
-        </p>
+        <p>Sweep angle: {geometry.sweepAngle ?? "Not applicable"}</p>
       )}
 
       {outline !== null && <WrapPreview outline={outline} />}
+
+      {outline !== null && (
+        <button type="button" onClick={downloadSvg}>
+          Download SVG
+        </button>
+      )}
     </>
   );
 }
