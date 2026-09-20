@@ -1,122 +1,197 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from "react";
+import {
+  calculateBottleWrap,
+  type BottleWrapOutput,
+} from "./geometry";
+import {
+  generateWrapOutline,
+  type WrapOutline,
+} from "./outline";
+import {
+  calculateBounds,
+  layoutWrapOutline,
+  pointsToString,
+} from "./svg";
+
+type NumberFieldProps = {
+  label: string;
+  value: number;
+  onChange: (newValue: number) => void;
+};
+
+function NumberField({
+  label,
+  value,
+  onChange,
+}: NumberFieldProps) {
+  return (
+    <label>
+      {label}:
+      <input
+        type="number"
+        step="any"
+        value={value}
+        onChange={(event) => {
+          onChange(Number(event.target.value));
+        }}
+      />
+    </label>
+  );
+}
+
+type WrapPreviewProps = {
+  outline: WrapOutline;
+};
+
+function WrapPreview({ outline }: WrapPreviewProps) {
+  const laidOutOutline = layoutWrapOutline(outline);
+
+  const allPoints =
+    laidOutOutline.shoulder === null
+      ? laidOutOutline.body
+      : [
+          ...laidOutOutline.body,
+          ...laidOutOutline.shoulder,
+        ];
+
+  const bounds = calculateBounds(allPoints);
+
+  return (
+    <svg
+      viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
+      style={{
+        width: "100%",
+        height: "auto",
+        maxWidth: "800px",
+      }}
+    >
+      <polygon
+        points={pointsToString(laidOutOutline.body)}
+        fill="none"
+        stroke="black"
+        strokeWidth={0.02}
+      />
+
+      {laidOutOutline.shoulder !== null && (
+        <polygon
+          points={pointsToString(laidOutOutline.shoulder)}
+          fill="none"
+          stroke="black"
+          strokeWidth={0.02}
+        />
+      )}
+    </svg>
+  );
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [inputs, setInputs] = useState({
+    bodyCircumference: 8.1,
+    neckCircumference: 3.4,
+    shoulderHeight: 0.85,
+    bodyHeight: 5.9,
+    bleed: 0,
+    seamOverlap: 0,
+  });
+
+  let geometry: BottleWrapOutput | null = null;
+  let outline: WrapOutline | null = null;
+  let errorMessage: string | null = null;
+
+  try {
+    geometry = calculateBottleWrap(inputs);
+    outline = generateWrapOutline(geometry);
+  } catch (error) {
+    errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Invalid bottle measurements";
+  }
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      <h1>BottleWrap Studio</h1>
 
-      <div className="ticks"></div>
+      <NumberField
+        label="Body circumference"
+        value={inputs.bodyCircumference}
+        onChange={(newValue) => {
+          setInputs({
+            ...inputs,
+            bodyCircumference: newValue,
+          });
+        }}
+      />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <NumberField
+        label="Neck circumference"
+        value={inputs.neckCircumference}
+        onChange={(newValue) => {
+          setInputs({
+            ...inputs,
+            neckCircumference: newValue,
+          });
+        }}
+      />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <NumberField
+        label="Shoulder height"
+        value={inputs.shoulderHeight}
+        onChange={(newValue) => {
+          setInputs({
+            ...inputs,
+            shoulderHeight: newValue,
+          });
+        }}
+      />
+
+      <NumberField
+        label="Body height"
+        value={inputs.bodyHeight}
+        onChange={(newValue) => {
+          setInputs({
+            ...inputs,
+            bodyHeight: newValue,
+          });
+        }}
+      />
+
+      <NumberField
+        label="Bleed"
+        value={inputs.bleed}
+        onChange={(newValue) => {
+          setInputs({
+            ...inputs,
+            bleed: newValue,
+          });
+        }}
+      />
+
+      <NumberField
+        label="Seam overlap"
+        value={inputs.seamOverlap}
+        onChange={(newValue) => {
+          setInputs({
+            ...inputs,
+            seamOverlap: newValue,
+          });
+        }}
+      />
+
+      {errorMessage !== null && (
+        <p role="alert">{errorMessage}</p>
+      )}
+
+      {geometry !== null && (
+        <p>
+          Sweep angle:{" "}
+          {geometry.sweepAngle ?? "Not applicable"}
+        </p>
+      )}
+
+      {outline !== null && <WrapPreview outline={outline} />}
     </>
-  )
+  );
 }
 
-export default App
+export default App;
