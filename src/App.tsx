@@ -44,6 +44,16 @@ function NumberField({
   );
 }
 
+type SegmentFields = {
+  id: string;
+  height: string;
+  bottomCircumference: string;
+};
+
+type SegmentUpdates = Partial<
+  Omit<SegmentFields, "id">
+>;
+
 type WrapPreviewProps = {
   outlines: WrapOutline[];
 };
@@ -55,7 +65,6 @@ function WrapPreview({
     layoutWrapOutline(outlines);
 
   const allPoints = laidOutOutlines.flat();
-
   const bounds = calculateBounds(allPoints);
 
   return (
@@ -67,15 +76,17 @@ function WrapPreview({
         maxWidth: "800px",
       }}
     >
-      {laidOutOutlines.map((outline, index) => (
-        <polygon
-          key={index}
-          points={pointsToString(outline)}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={0.02}
-        />
-      ))}
+      {laidOutOutlines.map(
+        (outline, index) => (
+          <polygon
+            key={index}
+            points={pointsToString(outline)}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={0.02}
+          />
+        ),
+      )}
     </svg>
   );
 }
@@ -84,148 +95,202 @@ function App() {
   const [unit, setUnit] =
     useState<MeasurementUnit>("in");
 
-  const [hasShoulder, setHasShoulder] =
-    useState(true);
+  const [
+    topCircumference,
+    setTopCircumference,
+  ] = useState("3.4");
 
-  const [inputs, setInputs] = useState({
-    topCircumference: "8.1",
-    bottomCircumference: "8.1",
-    height: "5.9",
-    neckCircumference: "3.4",
-    shoulderHeight: "0.85",
-    bleed: "0",
-    seamOverlap: "0",
-  });
+  const [segments, setSegments] = useState<
+    SegmentFields[]
+  >(() => [
+    {
+      id: crypto.randomUUID(),
+      height: "0.85",
+      bottomCircumference: "8.1",
+    },
+    {
+      id: crypto.randomUUID(),
+      height: "5.9",
+      bottomCircumference: "8.1",
+    },
+  ]);
+
+  const [bleed, setBleed] =
+    useState("0");
+
+  const [seamOverlap, setSeamOverlap] =
+    useState("0");
 
   let geometries: WrapSegmentGeometry[] = [];
   let outlines: WrapOutline[] | null = null;
   let errorMessage: string | null = null;
 
+  function updateSegment(
+    id: string,
+    updates: SegmentUpdates,
+  ) {
+    setSegments((currentSegments) =>
+      currentSegments.map((segment) =>
+        segment.id === id
+          ? {
+              ...segment,
+              ...updates,
+            }
+          : segment,
+      ),
+    );
+  }
+
+  function addSegment() {
+    setSegments((currentSegments) => [
+      ...currentSegments,
+      {
+        id: crypto.randomUUID(),
+        height: "",
+        bottomCircumference: "",
+      },
+    ]);
+  }
+
+  function removeSegment(id: string) {
+    setSegments((currentSegments) => {
+      if (currentSegments.length === 1) {
+        return currentSegments;
+      }
+
+      return currentSegments.filter(
+        (segment) => segment.id !== id,
+      );
+    });
+  }
+
   try {
-    const requiredValues = [
-      inputs.topCircumference,
-      inputs.bottomCircumference,
-      inputs.height,
-      inputs.bleed,
-      inputs.seamOverlap,
+    const textValues = [
+      topCircumference,
+      bleed,
+      seamOverlap,
+      ...segments.flatMap((segment) => [
+        segment.height,
+        segment.bottomCircumference,
+      ]),
     ];
 
-    if (hasShoulder) {
-      requiredValues.push(
-        inputs.neckCircumference,
-        inputs.shoulderHeight,
-      );
-    }
-
-    const hasEmptyField = requiredValues.some(
+    const hasEmptyField = textValues.some(
       (value) => value.trim() === "",
     );
 
     if (hasEmptyField) {
-      throw new Error("Enter all measurements");
-    }
-
-    const topCircumference = Number(
-      inputs.topCircumference,
-    );
-
-    const bottomCircumference = Number(
-      inputs.bottomCircumference,
-    );
-
-    const height = Number(inputs.height);
-    const bleed = Number(inputs.bleed);
-    const seamOverlap = Number(
-      inputs.seamOverlap,
-    );
-
-    const requiredNumbers = [
-      topCircumference,
-      bottomCircumference,
-      height,
-      bleed,
-      seamOverlap,
-    ];
-
-    const hasInvalidNumber = requiredNumbers.some(
-      (value) => !Number.isFinite(value),
-    );
-
-    if (hasInvalidNumber) {
-      throw new Error("Enter valid measurements");
-    }
-
-    if (
-      topCircumference <= 0 ||
-      bottomCircumference <= 0 ||
-      height <= 0
-    ) {
       throw new Error(
-        "Circumferences and height must be greater than zero",
+        "Enter all measurements",
       );
     }
 
-    if (bleed < 0 || seamOverlap < 0) {
+    const numericTopCircumference = Number(
+      topCircumference,
+    );
+
+    const numericBleed = Number(bleed);
+
+    const numericSeamOverlap = Number(
+      seamOverlap,
+    );
+
+    const numericValues = [
+      numericTopCircumference,
+      numericBleed,
+      numericSeamOverlap,
+      ...segments.flatMap((segment) => [
+        Number(segment.height),
+        Number(
+          segment.bottomCircumference,
+        ),
+      ]),
+    ];
+
+    const hasInvalidNumber =
+      numericValues.some(
+        (value) => !Number.isFinite(value),
+      );
+
+    if (hasInvalidNumber) {
+      throw new Error(
+        "Enter valid measurements",
+      );
+    }
+
+    if (numericTopCircumference <= 0) {
+      throw new Error(
+        "Circumferences must be greater than zero",
+      );
+    }
+
+    if (
+      numericBleed < 0 ||
+      numericSeamOverlap < 0
+    ) {
       throw new Error(
         "Bleed and seam overlap cannot be negative",
       );
     }
 
-    const bodyGeometry = calculateWrapSegment({
-      topCircumference,
-      bottomCircumference,
-      height,
-    });
+    const calculatedGeometries:
+      WrapSegmentGeometry[] = [];
 
-    geometries = [bodyGeometry];
+    let currentTopCircumference =
+      numericTopCircumference;
 
-    if (hasShoulder) {
-      const neckCircumference = Number(
-        inputs.neckCircumference,
+    for (const segment of segments) {
+      const height = Number(
+        segment.height,
       );
 
-      const shoulderHeight = Number(
-        inputs.shoulderHeight,
+      const bottomCircumference = Number(
+        segment.bottomCircumference,
       );
 
-      if (
-        !Number.isFinite(neckCircumference) ||
-        !Number.isFinite(shoulderHeight)
-      ) {
-        throw new Error("Enter valid measurements");
-      }
-
-      if (
-        neckCircumference <= 0 ||
-        shoulderHeight <= 0
-      ) {
+      if (height <= 0) {
         throw new Error(
-          "Neck circumference and shoulder height must be greater than zero",
+          "Segment heights must be greater than zero",
         );
       }
 
-      const shoulderGeometry =
+      if (bottomCircumference <= 0) {
+        throw new Error(
+          "Circumferences must be greater than zero",
+        );
+      }
+
+      const geometry =
         calculateWrapSegment({
-          topCircumference: neckCircumference,
-          bottomCircumference:
-            topCircumference,
-          height: shoulderHeight,
+          topCircumference:
+            currentTopCircumference,
+          bottomCircumference,
+          height,
         });
 
-      geometries.push(shoulderGeometry);
+      calculatedGeometries.push(
+        geometry,
+      );
+
+      currentTopCircumference =
+        bottomCircumference;
     }
 
-    outlines = geometries.map((geometry) => {
-      const originalOutline =
-        generateWrapOutline(geometry);
+    geometries = calculatedGeometries;
 
-      return applyPadding(
-        originalOutline,
-        geometry,
-        bleed,
-        seamOverlap,
-      );
-    });
+    outlines = geometries.map(
+      (geometry) => {
+        const originalOutline =
+          generateWrapOutline(geometry);
+
+        return applyPadding(
+          originalOutline,
+          geometry,
+          numericBleed,
+          numericSeamOverlap,
+        );
+      },
+    );
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -249,7 +314,9 @@ function App() {
 
     const url = URL.createObjectURL(blob);
 
-    const link = document.createElement("a");
+    const link =
+      document.createElement("a");
+
     link.href = url;
     link.download = "bottle-wrap.svg";
     link.click();
@@ -275,7 +342,10 @@ function App() {
                 );
               }}
             >
-              <option value="in">Inches</option>
+              <option value="in">
+                Inches
+              </option>
+
               <option value="cm">
                 Centimeters
               </option>
@@ -284,106 +354,119 @@ function App() {
 
           <NumberField
             label={`Top circumference (${unit})`}
-            value={inputs.topCircumference}
-            onChange={(newValue) => {
-              setInputs({
-                ...inputs,
-                topCircumference: newValue,
-              });
-            }}
-          />
-
-          <NumberField
-            label={`Bottom circumference (${unit})`}
-            value={
-              inputs.bottomCircumference
+            value={topCircumference}
+            onChange={
+              setTopCircumference
             }
-            onChange={(newValue) => {
-              setInputs({
-                ...inputs,
-                bottomCircumference: newValue,
-              });
-            }}
           />
 
-          <NumberField
-            label={`Height (${unit})`}
-            value={inputs.height}
-            onChange={(newValue) => {
-              setInputs({
-                ...inputs,
-                height: newValue,
-              });
-            }}
-          />
+          <div className="segment-list">
+            {segments.map(
+              (segment, index) => {
+                const segmentTop =
+                  index === 0
+                    ? topCircumference
+                    : segments[index - 1]
+                        .bottomCircumference;
 
-          <label className="field">
-            <span>Add shoulder/neck section</span>
+                return (
+                  <section
+                    className="segment"
+                    key={segment.id}
+                  >
+                    <div className="segment-heading">
+                      <h2>
+                        Segment {index + 1}
+                      </h2>
 
-            <input
-              type="checkbox"
-              checked={hasShoulder}
-              onChange={(event) => {
-                setHasShoulder(
-                  event.target.checked,
+                      <button
+                        className="remove-segment"
+                        type="button"
+                        disabled={
+                          segments.length === 1
+                        }
+                        onClick={() => {
+                          removeSegment(
+                            segment.id,
+                          );
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <p className="segment-top">
+                      Top:{" "}
+                      {segmentTop || "—"}{" "}
+                      {unit}
+                    </p>
+
+                    <NumberField
+                      label={`Height (${unit})`}
+                      value={
+                        segment.height
+                      }
+                      onChange={(
+                        newValue,
+                      ) => {
+                        updateSegment(
+                          segment.id,
+                          {
+                            height:
+                              newValue,
+                          },
+                        );
+                      }}
+                    />
+
+                    <NumberField
+                      label={`Bottom circumference (${unit})`}
+                      value={
+                        segment.bottomCircumference
+                      }
+                      onChange={(
+                        newValue,
+                      ) => {
+                        updateSegment(
+                          segment.id,
+                          {
+                            bottomCircumference:
+                              newValue,
+                          },
+                        );
+                      }}
+                    />
+                  </section>
                 );
-              }}
-            />
-          </label>
+              },
+            )}
+          </div>
 
-          {hasShoulder && (
-            <>
-              <NumberField
-                label={`Neck circumference (${unit})`}
-                value={
-                  inputs.neckCircumference
-                }
-                onChange={(newValue) => {
-                  setInputs({
-                    ...inputs,
-                    neckCircumference:
-                      newValue,
-                  });
-                }}
-              />
-
-              <NumberField
-                label={`Shoulder height (${unit})`}
-                value={inputs.shoulderHeight}
-                onChange={(newValue) => {
-                  setInputs({
-                    ...inputs,
-                    shoulderHeight: newValue,
-                  });
-                }}
-              />
-            </>
-          )}
+          <button
+            className="add-segment"
+            type="button"
+            onClick={addSegment}
+          >
+            Add segment
+          </button>
 
           <NumberField
             label={`Bleed (${unit})`}
-            value={inputs.bleed}
-            onChange={(newValue) => {
-              setInputs({
-                ...inputs,
-                bleed: newValue,
-              });
-            }}
+            value={bleed}
+            onChange={setBleed}
           />
 
           <NumberField
             label={`Seam overlap (${unit})`}
-            value={inputs.seamOverlap}
-            onChange={(newValue) => {
-              setInputs({
-                ...inputs,
-                seamOverlap: newValue,
-              });
-            }}
+            value={seamOverlap}
+            onChange={setSeamOverlap}
           />
 
           {errorMessage !== null && (
-            <p className="error" role="alert">
+            <p
+              className="error"
+              role="alert"
+            >
               {errorMessage}
             </p>
           )}
@@ -392,14 +475,13 @@ function App() {
             (geometry, index) => (
               <p
                 className="stat"
-                key={index}
+                key={segments[index].id}
               >
-                {index === 0
-                  ? "Body"
-                  : "Shoulder"}{" "}
-                sweep angle:{" "}
-                {geometry.sweepAngle === null
-                  ? "Not applicable"
+                Segment {index + 1}{" "}
+                sweep:{" "}
+                {geometry.sweepAngle ===
+                null
+                  ? "Straight"
                   : `${geometry.sweepAngle.toFixed(
                       1,
                     )}°`}

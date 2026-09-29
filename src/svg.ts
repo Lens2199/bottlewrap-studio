@@ -12,34 +12,22 @@ export type Bounds = {
   height: number;
 };
 
-export function pointsToString(
-  points: Point[],
-): string {
-  const coordinatePairs = points.map(
-    (point) => {
-      return `${point.x},${point.y}`;
-    },
-  );
+export function pointsToString(points: Point[]): string {
+  const coordinatePairs = points.map((point) => {
+    return `${point.x},${point.y}`;
+  });
 
   return coordinatePairs.join(" ");
 }
 
-export function calculateBounds(
-  points: Point[],
-): Bounds {
+export function calculateBounds(points: Point[]): Bounds {
   if (points.length === 0) {
-    throw new Error(
-      "Cannot calculate bounds for an empty point list",
-    );
+    throw new Error("Cannot calculate bounds for an empty point list");
   }
 
-  const xValues = points.map(
-    (point) => point.x,
-  );
+  const xValues = points.map((point) => point.x);
 
-  const yValues = points.map(
-    (point) => point.y,
-  );
+  const yValues = points.map((point) => point.y);
 
   const minX = Math.min(...xValues);
   const maxX = Math.max(...xValues);
@@ -56,9 +44,7 @@ export function calculateBounds(
   };
 }
 
-export function layoutWrapOutline(
-  outlines: WrapOutline[],
-): WrapOutline[] {
+export function layoutWrapOutline(outlines: WrapOutline[]): WrapOutline[] {
   const gap = 0.25;
   const laidOutOutlines: WrapOutline[] = [];
 
@@ -66,14 +52,13 @@ export function layoutWrapOutline(
 
   for (const outline of outlines) {
     const bounds = calculateBounds(outline);
+    const shiftX = -bounds.minX;
     const shiftY = nextY - bounds.minY;
 
-    const shiftedOutline = outline.map(
-      (point) => ({
-        x: point.x,
-        y: point.y + shiftY,
-      }),
-    );
+    const shiftedOutline = outline.map((point) => ({
+      x: point.x + shiftX,
+      y: point.y + shiftY,
+    }));
 
     laidOutOutlines.push(shiftedOutline);
 
@@ -88,13 +73,10 @@ export function generateSvg(
   unit: MeasurementUnit = "in",
 ): string {
   if (outlines.length === 0) {
-    throw new Error(
-      "Cannot generate an SVG without an outline",
-    );
+    throw new Error("Cannot generate an SVG without an outline");
   }
 
-  const laidOutOutlines =
-    layoutWrapOutline(outlines);
+  const laidOutOutlines = layoutWrapOutline(outlines);
 
   const allPoints = laidOutOutlines.flat();
 

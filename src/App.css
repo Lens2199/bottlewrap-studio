@@ -37,7 +37,7 @@ body {
 
 .app {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 24px 48px;
 }
@@ -54,7 +54,7 @@ body {
 
 .workspace {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -96,15 +96,6 @@ body {
   border-radius: 6px;
 }
 
-.field input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  justify-self: end;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
 .field select {
   width: 100%;
   padding: 8px 10px;
@@ -122,6 +113,87 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* ---------- segment editor ---------- */
+
+.segment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.segment {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.segment-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.segment-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.segment-top {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.add-segment,
+.remove-segment {
+  padding: 7px 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.add-segment {
+  width: 100%;
+  padding: 9px 12px;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.add-segment:hover {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+.remove-segment:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.remove-segment:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.add-segment:focus-visible,
+.remove-segment:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- messages and statistics ---------- */
 
 .stat {
   margin: 0;
@@ -215,7 +287,7 @@ body {
     text-align: left;
   }
 
-  .field input[type="checkbox"] {
-    justify-self: start;
+  .segment {
+    padding: 12px;
   }
 }
