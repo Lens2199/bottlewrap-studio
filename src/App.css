@@ -96,6 +96,15 @@ body {
   border-radius: 6px;
 }
 
+.field input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  justify-self: end;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .field select {
   width: 100%;
   padding: 8px 10px;
@@ -107,13 +116,8 @@ body {
   cursor: pointer;
 }
 
+.field input:focus-visible,
 .field select:focus-visible {
-  border-color: transparent;
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.field input:focus-visible {
   border-color: transparent;
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -209,5 +213,9 @@ body {
 
   .field input {
     text-align: left;
+  }
+
+  .field input[type="checkbox"] {
+    justify-self: start;
   }
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  calculateBottleWrap,
-  type BottleWrapOutput,
+  calculateWrapSegment,
+  type WrapSegmentGeometry,
 } from "./geometry";
 import {
   generateWrapOutline,
@@ -45,19 +45,16 @@ function NumberField({
 }
 
 type WrapPreviewProps = {
-  outline: WrapOutline;
+  outlines: WrapOutline[];
 };
 
-function WrapPreview({ outline }: WrapPreviewProps) {
-  const laidOutOutline = layoutWrapOutline(outline);
+function WrapPreview({
+  outlines,
+}: WrapPreviewProps) {
+  const laidOutOutlines =
+    layoutWrapOutline(outlines);
 
-  const allPoints =
-    laidOutOutline.shoulder === null
-      ? laidOutOutline.body
-      : [
-          ...laidOutOutline.body,
-          ...laidOutOutline.shoulder,
-        ];
+  const allPoints = laidOutOutlines.flat();
 
   const bounds = calculateBounds(allPoints);
 
@@ -70,21 +67,15 @@ function WrapPreview({ outline }: WrapPreviewProps) {
         maxWidth: "800px",
       }}
     >
-      <polygon
-        points={pointsToString(laidOutOutline.body)}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={0.02}
-      />
-
-      {laidOutOutline.shoulder !== null && (
+      {laidOutOutlines.map((outline, index) => (
         <polygon
-          points={pointsToString(laidOutOutline.shoulder)}
+          key={index}
+          points={pointsToString(outline)}
           fill="none"
           stroke="currentColor"
           strokeWidth={0.02}
         />
-      )}
+      ))}
     </svg>
   );
 }
@@ -93,21 +84,40 @@ function App() {
   const [unit, setUnit] =
     useState<MeasurementUnit>("in");
 
+  const [hasShoulder, setHasShoulder] =
+    useState(true);
+
   const [inputs, setInputs] = useState({
-    bodyCircumference: "8.1",
+    topCircumference: "8.1",
+    bottomCircumference: "8.1",
+    height: "5.9",
     neckCircumference: "3.4",
     shoulderHeight: "0.85",
-    bodyHeight: "5.9",
     bleed: "0",
     seamOverlap: "0",
   });
 
-  let geometry: BottleWrapOutput | null = null;
-  let outline: WrapOutline | null = null;
+  let geometries: WrapSegmentGeometry[] = [];
+  let outlines: WrapOutline[] | null = null;
   let errorMessage: string | null = null;
 
   try {
-    const hasEmptyField = Object.values(inputs).some(
+    const requiredValues = [
+      inputs.topCircumference,
+      inputs.bottomCircumference,
+      inputs.height,
+      inputs.bleed,
+      inputs.seamOverlap,
+    ];
+
+    if (hasShoulder) {
+      requiredValues.push(
+        inputs.neckCircumference,
+        inputs.shoulderHeight,
+      );
+    }
+
+    const hasEmptyField = requiredValues.some(
       (value) => value.trim() === "",
     );
 
@@ -115,47 +125,123 @@ function App() {
       throw new Error("Enter all measurements");
     }
 
-    const numericInputs = {
-      bodyCircumference: Number(inputs.bodyCircumference),
-      neckCircumference: Number(inputs.neckCircumference),
-      shoulderHeight: Number(inputs.shoulderHeight),
-      bodyHeight: Number(inputs.bodyHeight),
-      bleed: Number(inputs.bleed),
-      seamOverlap: Number(inputs.seamOverlap),
-    };
+    const topCircumference = Number(
+      inputs.topCircumference,
+    );
 
-    const hasInvalidNumber = Object.values(
-      numericInputs,
-    ).some((value) => !Number.isFinite(value));
+    const bottomCircumference = Number(
+      inputs.bottomCircumference,
+    );
+
+    const height = Number(inputs.height);
+    const bleed = Number(inputs.bleed);
+    const seamOverlap = Number(
+      inputs.seamOverlap,
+    );
+
+    const requiredNumbers = [
+      topCircumference,
+      bottomCircumference,
+      height,
+      bleed,
+      seamOverlap,
+    ];
+
+    const hasInvalidNumber = requiredNumbers.some(
+      (value) => !Number.isFinite(value),
+    );
 
     if (hasInvalidNumber) {
       throw new Error("Enter valid measurements");
     }
 
-    geometry = calculateBottleWrap(numericInputs);
+    if (
+      topCircumference <= 0 ||
+      bottomCircumference <= 0 ||
+      height <= 0
+    ) {
+      throw new Error(
+        "Circumferences and height must be greater than zero",
+      );
+    }
 
-    const originalOutline =
-      generateWrapOutline(geometry);
+    if (bleed < 0 || seamOverlap < 0) {
+      throw new Error(
+        "Bleed and seam overlap cannot be negative",
+      );
+    }
 
-    outline = applyPadding(
-      originalOutline,
-      geometry,
-      numericInputs.bleed,
-      numericInputs.seamOverlap,
-    );
+    const bodyGeometry = calculateWrapSegment({
+      topCircumference,
+      bottomCircumference,
+      height,
+    });
+
+    geometries = [bodyGeometry];
+
+    if (hasShoulder) {
+      const neckCircumference = Number(
+        inputs.neckCircumference,
+      );
+
+      const shoulderHeight = Number(
+        inputs.shoulderHeight,
+      );
+
+      if (
+        !Number.isFinite(neckCircumference) ||
+        !Number.isFinite(shoulderHeight)
+      ) {
+        throw new Error("Enter valid measurements");
+      }
+
+      if (
+        neckCircumference <= 0 ||
+        shoulderHeight <= 0
+      ) {
+        throw new Error(
+          "Neck circumference and shoulder height must be greater than zero",
+        );
+      }
+
+      const shoulderGeometry =
+        calculateWrapSegment({
+          topCircumference: neckCircumference,
+          bottomCircumference:
+            topCircumference,
+          height: shoulderHeight,
+        });
+
+      geometries.push(shoulderGeometry);
+    }
+
+    outlines = geometries.map((geometry) => {
+      const originalOutline =
+        generateWrapOutline(geometry);
+
+      return applyPadding(
+        originalOutline,
+        geometry,
+        bleed,
+        seamOverlap,
+      );
+    });
   } catch (error) {
     errorMessage =
       error instanceof Error
         ? error.message
-        : "Invalid bottle measurements";
+        : "Invalid measurements";
   }
 
   function downloadSvg() {
-    if (outline === null) {
+    if (outlines === null) {
       return;
     }
 
-    const svgString = generateSvg(outline, unit);
+    const svgString = generateSvg(
+      outlines,
+      unit,
+    );
 
     const blob = new Blob([svgString], {
       type: "image/svg+xml",
@@ -184,58 +270,95 @@ function App() {
               value={unit}
               onChange={(event) => {
                 setUnit(
-                  event.target.value as MeasurementUnit,
+                  event.target
+                    .value as MeasurementUnit,
                 );
               }}
             >
               <option value="in">Inches</option>
-              <option value="cm">Centimeters</option>
+              <option value="cm">
+                Centimeters
+              </option>
             </select>
           </label>
 
           <NumberField
-            label={`Body circumference (${unit})`}
-            value={inputs.bodyCircumference}
+            label={`Top circumference (${unit})`}
+            value={inputs.topCircumference}
             onChange={(newValue) => {
               setInputs({
                 ...inputs,
-                bodyCircumference: newValue,
+                topCircumference: newValue,
               });
             }}
           />
 
           <NumberField
-            label={`Neck circumference (${unit})`}
-            value={inputs.neckCircumference}
+            label={`Bottom circumference (${unit})`}
+            value={
+              inputs.bottomCircumference
+            }
             onChange={(newValue) => {
               setInputs({
                 ...inputs,
-                neckCircumference: newValue,
+                bottomCircumference: newValue,
               });
             }}
           />
 
           <NumberField
-            label={`Shoulder height (${unit})`}
-            value={inputs.shoulderHeight}
+            label={`Height (${unit})`}
+            value={inputs.height}
             onChange={(newValue) => {
               setInputs({
                 ...inputs,
-                shoulderHeight: newValue,
+                height: newValue,
               });
             }}
           />
 
-          <NumberField
-            label={`Body height (${unit})`}
-            value={inputs.bodyHeight}
-            onChange={(newValue) => {
-              setInputs({
-                ...inputs,
-                bodyHeight: newValue,
-              });
-            }}
-          />
+          <label className="field">
+            <span>Add shoulder/neck section</span>
+
+            <input
+              type="checkbox"
+              checked={hasShoulder}
+              onChange={(event) => {
+                setHasShoulder(
+                  event.target.checked,
+                );
+              }}
+            />
+          </label>
+
+          {hasShoulder && (
+            <>
+              <NumberField
+                label={`Neck circumference (${unit})`}
+                value={
+                  inputs.neckCircumference
+                }
+                onChange={(newValue) => {
+                  setInputs({
+                    ...inputs,
+                    neckCircumference:
+                      newValue,
+                  });
+                }}
+              />
+
+              <NumberField
+                label={`Shoulder height (${unit})`}
+                value={inputs.shoulderHeight}
+                onChange={(newValue) => {
+                  setInputs({
+                    ...inputs,
+                    shoulderHeight: newValue,
+                  });
+                }}
+              />
+            </>
+          )}
 
           <NumberField
             label={`Bleed (${unit})`}
@@ -265,22 +388,34 @@ function App() {
             </p>
           )}
 
-          {geometry !== null && (
-            <p className="stat">
-              Sweep angle:{" "}
-              {geometry.sweepAngle === null
-                ? "Not applicable"
-                : `${geometry.sweepAngle.toFixed(1)}°`}
-            </p>
+          {geometries.map(
+            (geometry, index) => (
+              <p
+                className="stat"
+                key={index}
+              >
+                {index === 0
+                  ? "Body"
+                  : "Shoulder"}{" "}
+                sweep angle:{" "}
+                {geometry.sweepAngle === null
+                  ? "Not applicable"
+                  : `${geometry.sweepAngle.toFixed(
+                      1,
+                    )}°`}
+              </p>
+            ),
           )}
         </section>
 
         <section className="preview">
-          {outline !== null && (
-            <WrapPreview outline={outline} />
+          {outlines !== null && (
+            <WrapPreview
+              outlines={outlines}
+            />
           )}
 
-          {outline !== null && (
+          {outlines !== null && (
             <button
               className="download"
               type="button"

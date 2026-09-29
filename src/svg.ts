@@ -12,17 +12,34 @@ export type Bounds = {
   height: number;
 };
 
-export function pointsToString(points: Point[]): string {
-  const coordinatePairs = points.map((point) => {
-    return `${point.x},${point.y}`;
-  });
+export function pointsToString(
+  points: Point[],
+): string {
+  const coordinatePairs = points.map(
+    (point) => {
+      return `${point.x},${point.y}`;
+    },
+  );
 
   return coordinatePairs.join(" ");
 }
 
-export function calculateBounds(points: Point[]): Bounds {
-  const xValues = points.map((point) => point.x);
-  const yValues = points.map((point) => point.y);
+export function calculateBounds(
+  points: Point[],
+): Bounds {
+  if (points.length === 0) {
+    throw new Error(
+      "Cannot calculate bounds for an empty point list",
+    );
+  }
+
+  const xValues = points.map(
+    (point) => point.x,
+  );
+
+  const yValues = points.map(
+    (point) => point.y,
+  );
 
   const minX = Math.min(...xValues);
   const maxX = Math.max(...xValues);
@@ -40,68 +57,61 @@ export function calculateBounds(points: Point[]): Bounds {
 }
 
 export function layoutWrapOutline(
-  outline: WrapOutline,
-): WrapOutline {
+  outlines: WrapOutline[],
+): WrapOutline[] {
   const gap = 0.25;
+  const laidOutOutlines: WrapOutline[] = [];
 
-  if (outline.shoulder === null) {
-    return outline;
+  let nextY = 0;
+
+  for (const outline of outlines) {
+    const bounds = calculateBounds(outline);
+    const shiftY = nextY - bounds.minY;
+
+    const shiftedOutline = outline.map(
+      (point) => ({
+        x: point.x,
+        y: point.y + shiftY,
+      }),
+    );
+
+    laidOutOutlines.push(shiftedOutline);
+
+    nextY += bounds.height + gap;
   }
 
-  const bodyBottom = Math.max(
-    ...outline.body.map((point) => point.y),
-  );
-
-  const shoulderTop = Math.min(
-    ...outline.shoulder.map((point) => point.y),
-  );
-
-  const shiftY = bodyBottom + gap - shoulderTop;
-
-  const shiftedShoulder = outline.shoulder.map((point) => ({
-    x: point.x,
-    y: point.y + shiftY,
-  }));
-
-  return {
-    body: outline.body,
-    shoulder: shiftedShoulder,
-  };
+  return laidOutOutlines;
 }
 
 export function generateSvg(
-  outline: WrapOutline,
+  outlines: WrapOutline[],
   unit: MeasurementUnit = "in",
 ): string {
-  const laidOutOutline = layoutWrapOutline(outline);
+  if (outlines.length === 0) {
+    throw new Error(
+      "Cannot generate an SVG without an outline",
+    );
+  }
 
-  const allPoints =
-    laidOutOutline.shoulder === null
-      ? laidOutOutline.body
-      : [
-          ...laidOutOutline.body,
-          ...laidOutOutline.shoulder,
-        ];
+  const laidOutOutlines =
+    layoutWrapOutline(outlines);
+
+  const allPoints = laidOutOutlines.flat();
 
   const bounds = calculateBounds(allPoints);
 
-  const bodyPoints = pointsToString(laidOutOutline.body);
+  const polygons = laidOutOutlines
+    .map((outline) => {
+      const points = pointsToString(outline);
 
-  const shoulderPoints =
-    laidOutOutline.shoulder === null
-      ? null
-      : pointsToString(laidOutOutline.shoulder);
-
-  const shoulderPolygon =
-    shoulderPoints === null
-      ? ""
-      : `<polygon points="${shoulderPoints}" fill="none" stroke="black" stroke-width="0.02" />`;
+      return `<polygon points="${points}" fill="none" stroke="black" stroke-width="0.02" />`;
+    })
+    .join("\n  ");
 
   return `<svg xmlns="http://www.w3.org/2000/svg"
   width="${bounds.width}${unit}"
   height="${bounds.height}${unit}"
   viewBox="${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}">
-  <polygon points="${bodyPoints}" fill="none" stroke="black" stroke-width="0.02" />
-  ${shoulderPolygon}
+  ${polygons}
 </svg>`;
 }

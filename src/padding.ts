@@ -1,109 +1,157 @@
-import type { BottleWrapOutput } from "./geometry";
+import type { WrapSegmentGeometry } from "./geometry";
 import type { WrapOutline } from "./outline";
-import { generateArcPoints, type Point } from "./points";
+import {
+  generateArcPoints,
+  type Point,
+} from "./points";
 import { calculateBounds } from "./svg";
 
 export function applyPadding(
   outline: WrapOutline,
-  geometry: BottleWrapOutput,
+  geometry: WrapSegmentGeometry,
   bleed: number,
   seamOverlap: number,
 ): WrapOutline {
-  const bounds = calculateBounds(outline.body);
+  const isStraightSegment =
+    geometry.innerRadius === null &&
+    geometry.outerRadius === null &&
+    geometry.sweepAngle === null;
 
-  const paddedBody: Point[] = [
-    {
-      x: bounds.minX - bleed,
-      y: bounds.minY - bleed,
-    },
-    {
-      x: bounds.maxX + bleed + seamOverlap,
-      y: bounds.minY - bleed,
-    },
-    {
-      x: bounds.maxX + bleed + seamOverlap,
-      y: bounds.maxY + bleed,
-    },
-    {
-      x: bounds.minX - bleed,
-      y: bounds.maxY + bleed,
-    },
-  ];
+  if (isStraightSegment) {
+    const bounds = calculateBounds(outline);
 
-  if (outline.shoulder === null) {
-    return {
-      body: paddedBody,
-      shoulder: null,
-    };
+    return [
+      {
+        x: bounds.minX - bleed,
+        y: bounds.minY - bleed,
+      },
+      {
+        x:
+          bounds.maxX +
+          bleed +
+          seamOverlap,
+        y: bounds.minY - bleed,
+      },
+      {
+        x:
+          bounds.maxX +
+          bleed +
+          seamOverlap,
+        y: bounds.maxY + bleed,
+      },
+      {
+        x: bounds.minX - bleed,
+        y: bounds.maxY + bleed,
+      },
+    ];
   }
 
-  const { outerRadius, innerRadius, sweepAngle } = geometry;
-
-  if (outerRadius === null || innerRadius === null || sweepAngle === null) {
-    throw new Error("Missing shoulder geometry");
+  if (
+    geometry.innerRadius === null ||
+    geometry.outerRadius === null ||
+    geometry.sweepAngle === null
+  ) {
+    throw new Error(
+      "Tapered segment geometry is incomplete",
+    );
   }
 
-  const paddedInnerRadius = innerRadius - bleed;
+  const paddedInnerRadius =
+    geometry.innerRadius - bleed;
 
   if (paddedInnerRadius <= 0) {
-    throw new Error("Bleed is too large for the shoulder inner radius");
+    throw new Error(
+      "Bleed is too large for the segment inner radius",
+    );
   }
 
-  const pointCount = outline.shoulder.length / 2;
-  const sweepRadians = sweepAngle * (Math.PI / 180);
+  const paddedOuterRadius =
+    geometry.outerRadius + bleed;
+
+  const pointCount = outline.length / 2;
 
   const paddedOuterArc = generateArcPoints(
-    outerRadius + bleed,
-    sweepAngle,
+    paddedOuterRadius,
+    geometry.sweepAngle,
     pointCount,
   );
 
   const paddedInnerArc = generateArcPoints(
     paddedInnerRadius,
-    sweepAngle,
+    geometry.sweepAngle,
     pointCount,
   );
 
   paddedInnerArc.reverse();
 
-  const paddedOuterStart = paddedOuterArc[0];
-  const paddedOuterEnd = paddedOuterArc[paddedOuterArc.length - 1];
+  const sweepRadians =
+    geometry.sweepAngle * (Math.PI / 180);
 
-  const paddedInnerEnd = paddedInnerArc[0];
-  const paddedInnerStart = paddedInnerArc[paddedInnerArc.length - 1];
-
-  // Outside the starting edge points toward angles below zero.
+  // The starting edge is at angle zero.
+  // Its outward direction points below the x-axis.
   const startOutwardX = 0;
   const startOutwardY = -1;
 
-  // Outside the ending edge points toward angles above the sweep.
-  const endOutwardX = -Math.sin(sweepRadians);
-  const endOutwardY = Math.cos(sweepRadians);
+  // The ending edge's outward direction points
+  // toward angles larger than the sweep.
+  const endOutwardX = -Math.sin(
+    sweepRadians,
+  );
+
+  const endOutwardY = Math.cos(
+    sweepRadians,
+  );
 
   const startDistance = bleed;
   const endDistance = bleed + seamOverlap;
 
+  const paddedOuterStart = paddedOuterArc[0];
+
+  const paddedOuterEnd =
+    paddedOuterArc[paddedOuterArc.length - 1];
+
+  const paddedInnerEnd = paddedInnerArc[0];
+
+  const paddedInnerStart =
+    paddedInnerArc[paddedInnerArc.length - 1];
+
   const shiftedOuterEnd: Point = {
-    x: paddedOuterEnd.x + endOutwardX * endDistance,
-    y: paddedOuterEnd.y + endOutwardY * endDistance,
+    x:
+      paddedOuterEnd.x +
+      endOutwardX * endDistance,
+    y:
+      paddedOuterEnd.y +
+      endOutwardY * endDistance,
   };
 
   const shiftedInnerEnd: Point = {
-    x: paddedInnerEnd.x + endOutwardX * endDistance,
-    y: paddedInnerEnd.y + endOutwardY * endDistance,
+    x:
+      paddedInnerEnd.x +
+      endOutwardX * endDistance,
+    y:
+      paddedInnerEnd.y +
+      endOutwardY * endDistance,
   };
 
   const shiftedInnerStart: Point = {
-    x: paddedInnerStart.x + startOutwardX * startDistance,
-    y: paddedInnerStart.y + startOutwardY * startDistance,
+    x:
+      paddedInnerStart.x +
+      startOutwardX * startDistance,
+    y:
+      paddedInnerStart.y +
+      startOutwardY * startDistance,
   };
 
   const shiftedOuterStart: Point = {
-    x: paddedOuterStart.x + startOutwardX * startDistance,
-    y: paddedOuterStart.y + startOutwardY * startDistance,
+    x:
+      paddedOuterStart.x +
+      startOutwardX * startDistance,
+    y:
+      paddedOuterStart.y +
+      startOutwardY * startDistance,
   };
 
-  const paddedShoulder: Point[] = [
+  return [
     ...paddedOuterArc,
     shiftedOuterEnd,
     shiftedInnerEnd,
@@ -111,9 +159,4 @@ export function applyPadding(
     shiftedInnerStart,
     shiftedOuterStart,
   ];
-
-  return {
-    body: paddedBody,
-    shoulder: paddedShoulder,
-  };
 }

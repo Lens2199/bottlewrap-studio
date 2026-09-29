@@ -1,44 +1,48 @@
-import type { BottleWrapOutput } from "./geometry";
-import { generateArcPoints } from "./points";
-import type { Point } from "./points";
+import type { WrapSegmentGeometry } from "./geometry";
+import {
+  generateArcPoints,
+  type Point,
+} from "./points";
 
-export type WrapOutline = {
-  body: Point[];
-  shoulder: Point[] | null;
-};
+export type WrapOutline = Point[];
 
-export function generateWrapOutline(geometry: BottleWrapOutput): WrapOutline {
-  const body: Point[] = [];
+export function generateWrapOutline(
+  geometry: WrapSegmentGeometry,
+): WrapOutline {
+  const isStraightSegment =
+    geometry.innerRadius === null &&
+    geometry.outerRadius === null &&
+    geometry.sweepAngle === null;
 
-  body.push({
-    x: 0,
-    y: 0,
-  });
-
-  body.push({
-    x: geometry.bodyCircumference,
-    y: 0,
-  });
-
-  body.push({
-    x: geometry.bodyCircumference,
-    y: geometry.bodyHeight,
-  });
-
-  body.push({
-    x: 0,
-    y: geometry.bodyHeight,
-  });
+  if (isStraightSegment) {
+    return [
+      {
+        x: 0,
+        y: 0,
+      },
+      {
+        x: geometry.topCircumference,
+        y: 0,
+      },
+      {
+        x: geometry.topCircumference,
+        y: geometry.height,
+      },
+      {
+        x: 0,
+        y: geometry.height,
+      },
+    ];
+  }
 
   if (
-    geometry.outerRadius === null ||
     geometry.innerRadius === null ||
+    geometry.outerRadius === null ||
     geometry.sweepAngle === null
   ) {
-    return {
-      body,
-      shoulder: null,
-    };
+    throw new Error(
+      "Tapered segment geometry is incomplete",
+    );
   }
 
   const pointCount = 40;
@@ -57,10 +61,5 @@ export function generateWrapOutline(geometry: BottleWrapOutput): WrapOutline {
 
   innerArc.reverse();
 
-  const shoulder: Point[] = [...outerArc, ...innerArc];
-
-  return {
-    body,
-    shoulder,
-  };
+  return [...outerArc, ...innerArc];
 }

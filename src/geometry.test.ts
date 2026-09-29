@@ -1,51 +1,65 @@
 import { describe, expect, it } from "vitest";
-import { calculateBottleWrap } from "./geometry";
+import { calculateWrapSegment } from "./geometry";
 
-describe("calculateBottleWrap", () => {
-  it("calculates a tapered bottle wrap", () => {
-    const result = calculateBottleWrap({
-      bodyCircumference: 8.1,
-      neckCircumference: 3.4,
-      shoulderHeight: 0.85,
-      bodyHeight: 5.9,
-      bleed: 0,
-      seamOverlap: 0,
+describe("calculateWrapSegment", () => {
+  it("calculates a tapered segment", () => {
+    const result = calculateWrapSegment({
+      topCircumference: 3.4,
+      bottomCircumference: 8.1,
+      height: 0.85,
     });
 
-    expect(result.totalWrapHeight).toBe(6.75);
+    expect(result.height).toBe(0.85);
     expect(result.innerRadius).toBeCloseTo(0.819);
     expect(result.outerRadius).toBeCloseTo(1.951);
     expect(result.sweepAngle).toBeCloseTo(237.831);
   });
 
-  it("returns a rectangular wrap for a cylinder", () => {
-    const result = calculateBottleWrap({
-      bodyCircumference: 12,
-      neckCircumference: 12,
-      shoulderHeight: 0,
-      bodyHeight: 5,
-      bleed: 0,
-      seamOverlap: 0,
+  it("returns rectangular geometry for a straight segment", () => {
+    const result = calculateWrapSegment({
+      topCircumference: 12,
+      bottomCircumference: 12,
+      height: 5,
     });
 
-    expect(result.totalWrapHeight).toBe(5);
+    expect(result.topCircumference).toBe(12);
+    expect(result.bottomCircumference).toBe(12);
+    expect(result.height).toBe(5);
     expect(result.innerRadius).toBeNull();
     expect(result.outerRadius).toBeNull();
     expect(result.sweepAngle).toBeNull();
   });
 
-  it("throws when the neck is larger than the body", () => {
-    const badInput = {
-      bodyCircumference: 5,
-      neckCircumference: 8,
-      shoulderHeight: 1,
-      bodyHeight: 5,
-      bleed: 0,
-      seamOverlap: 0,
-    };
+  it("handles a segment that is wider at the top", () => {
+    const result = calculateWrapSegment({
+      topCircumference: 11,
+      bottomCircumference: 9,
+      height: 6,
+    });
 
-    expect(() => calculateBottleWrap(badInput)).toThrow(
-      "neck must be smaller than body",
+    expect(result.innerRadius).not.toBeNull();
+    expect(result.outerRadius).not.toBeNull();
+    expect(result.sweepAngle).not.toBeNull();
+
+    if (
+      result.innerRadius === null ||
+      result.outerRadius === null ||
+      result.sweepAngle === null
+    ) {
+      throw new Error(
+        "Expected tapered segment geometry",
+      );
+    }
+
+    const innerArcLength =
+      2 *
+      Math.PI *
+      result.innerRadius *
+      (result.sweepAngle / 360);
+
+    expect(innerArcLength).toBeCloseTo(9);
+    expect(result.outerRadius).toBeGreaterThan(
+      result.innerRadius,
     );
   });
 });
