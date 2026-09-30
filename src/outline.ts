@@ -6,6 +6,11 @@ import {
 
 export type WrapOutline = Point[];
 
+export type WrapPiece = {
+  cutOutline: WrapOutline;
+  bleedOutline: WrapOutline | null;
+};
+
 export function generateWrapOutline(
   geometry: WrapSegmentGeometry,
 ): WrapOutline {
@@ -16,10 +21,7 @@ export function generateWrapOutline(
 
   if (isStraightSegment) {
     return [
-      {
-        x: 0,
-        y: 0,
-      },
+      { x: 0, y: 0 },
       {
         x: geometry.topCircumference,
         y: 0,

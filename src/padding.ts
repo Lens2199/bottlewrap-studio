@@ -1,17 +1,24 @@
 import type { WrapSegmentGeometry } from "./geometry";
-import type { WrapOutline } from "./outline";
+import type {
+  WrapOutline,
+  WrapPiece,
+} from "./outline";
 import {
   generateArcPoints,
   type Point,
 } from "./points";
 import { calculateBounds } from "./svg";
 
-export function applyPadding(
+function generatePaddedOutline(
   outline: WrapOutline,
   geometry: WrapSegmentGeometry,
   bleed: number,
   seamOverlap: number,
 ): WrapOutline {
+  if (bleed === 0 && seamOverlap === 0) {
+    return outline;
+  }
+
   const isStraightSegment =
     geometry.innerRadius === null &&
     geometry.outerRadius === null &&
@@ -87,13 +94,9 @@ export function applyPadding(
   const sweepRadians =
     geometry.sweepAngle * (Math.PI / 180);
 
-  // The starting edge is at angle zero.
-  // Its outward direction points below the x-axis.
   const startOutwardX = 0;
   const startOutwardY = -1;
 
-  // The ending edge's outward direction points
-  // toward angles larger than the sweep.
   const endOutwardX = -Math.sin(
     sweepRadians,
   );
@@ -159,4 +162,33 @@ export function applyPadding(
     shiftedInnerStart,
     shiftedOuterStart,
   ];
+}
+
+export function generateWrapPiece(
+  originalOutline: WrapOutline,
+  geometry: WrapSegmentGeometry,
+  bleed: number,
+  seamOverlap: number,
+): WrapPiece {
+  const cutOutline = generatePaddedOutline(
+    originalOutline,
+    geometry,
+    0,
+    seamOverlap,
+  );
+
+  const bleedOutline =
+    bleed === 0
+      ? null
+      : generatePaddedOutline(
+          originalOutline,
+          geometry,
+          bleed,
+          seamOverlap,
+        );
+
+  return {
+    cutOutline,
+    bleedOutline,
+  };
 }

@@ -5,9 +5,9 @@ import {
 } from "./geometry";
 import {
   generateWrapOutline,
-  type WrapOutline,
+  type WrapPiece,
 } from "./outline";
-import { applyPadding } from "./padding";
+import { generateWrapPiece } from "./padding";
 import {
   calculateBounds,
   generateSvg,
@@ -55,16 +55,25 @@ type SegmentUpdates = Partial<
 >;
 
 type WrapPreviewProps = {
-  outlines: WrapOutline[];
+  pieces: WrapPiece[];
 };
 
 function WrapPreview({
-  outlines,
+  pieces,
 }: WrapPreviewProps) {
-  const laidOutOutlines =
-    layoutWrapOutline(outlines);
+  const laidOutPieces =
+    layoutWrapOutline(pieces);
 
-  const allPoints = laidOutOutlines.flat();
+  const allPoints = laidOutPieces.flatMap(
+    (piece) =>
+      piece.bleedOutline === null
+        ? piece.cutOutline
+        : [
+            ...piece.bleedOutline,
+            ...piece.cutOutline,
+          ],
+  );
+
   const bounds = calculateBounds(allPoints);
 
   return (
@@ -76,15 +85,29 @@ function WrapPreview({
         maxWidth: "800px",
       }}
     >
-      {laidOutOutlines.map(
-        (outline, index) => (
-          <polygon
-            key={index}
-            points={pointsToString(outline)}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={0.02}
-          />
+      {laidOutPieces.map(
+        (piece, index) => (
+          <g key={index}>
+            {piece.bleedOutline !== null && (
+              <polygon
+                points={pointsToString(
+                  piece.bleedOutline,
+                )}
+                fill="none"
+                stroke="red"
+                strokeWidth={0.02}
+              />
+            )}
+
+            <polygon
+              points={pointsToString(
+                piece.cutOutline,
+              )}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={0.02}
+            />
+          </g>
         ),
       )}
     </svg>
@@ -122,7 +145,7 @@ function App() {
     useState("0");
 
   let geometries: WrapSegmentGeometry[] = [];
-  let outlines: WrapOutline[] | null = null;
+  let pieces: WrapPiece[] | null = null;
   let errorMessage: string | null = null;
 
   function updateSegment(
@@ -278,19 +301,17 @@ function App() {
 
     geometries = calculatedGeometries;
 
-    outlines = geometries.map(
-      (geometry) => {
-        const originalOutline =
-          generateWrapOutline(geometry);
+    pieces = geometries.map((geometry) => {
+      const originalOutline =
+        generateWrapOutline(geometry);
 
-        return applyPadding(
-          originalOutline,
-          geometry,
-          numericBleed,
-          numericSeamOverlap,
-        );
-      },
-    );
+      return generateWrapPiece(
+        originalOutline,
+        geometry,
+        numericBleed,
+        numericSeamOverlap,
+      );
+    });
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -299,12 +320,12 @@ function App() {
   }
 
   function downloadSvg() {
-    if (outlines === null) {
+    if (pieces === null) {
       return;
     }
 
     const svgString = generateSvg(
-      outlines,
+      pieces,
       unit,
     );
 
@@ -491,13 +512,11 @@ function App() {
         </section>
 
         <section className="preview">
-          {outlines !== null && (
-            <WrapPreview
-              outlines={outlines}
-            />
+          {pieces !== null && (
+            <WrapPreview pieces={pieces} />
           )}
 
-          {outlines !== null && (
+          {pieces !== null && (
             <button
               className="download"
               type="button"

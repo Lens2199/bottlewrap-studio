@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { calculateWrapSegment } from "./geometry";
-import { generateWrapOutline } from "./outline";
-import type { WrapOutline } from "./outline";
+import {
+  generateWrapOutline,
+  type WrapPiece,
+} from "./outline";
+import { generateWrapPiece } from "./padding";
 import {
   calculateBounds,
   generateSvg,
@@ -16,27 +19,75 @@ describe("pointsToString", () => {
       { x: 3, y: 4 },
     ];
 
-    const result = pointsToString(points);
-
-    expect(result).toBe("1,2 3,4");
+    expect(pointsToString(points)).toBe(
+      "1,2 3,4",
+    );
   });
 });
 
 describe("layoutWrapOutline", () => {
-  it("stacks any number of pieces with a gap", () => {
-    const firstPiece: WrapOutline = [
-      { x: 0, y: 10 },
-      { x: 2, y: 10 },
-      { x: 2, y: 12 },
-      { x: 0, y: 12 },
-    ];
+  it("shifts the cut and bleed outlines together", () => {
+    const piece: WrapPiece = {
+      cutOutline: [
+        { x: 1, y: 1 },
+        { x: 3, y: 1 },
+        { x: 3, y: 3 },
+        { x: 1, y: 3 },
+      ],
+      bleedOutline: [
+        { x: 0.9, y: 0.9 },
+        { x: 3.1, y: 0.9 },
+        { x: 3.1, y: 3.1 },
+        { x: 0.9, y: 3.1 },
+      ],
+    };
 
-    const secondPiece: WrapOutline = [
-      { x: 0, y: -5 },
-      { x: 3, y: -5 },
-      { x: 3, y: -1 },
-      { x: 0, y: -1 },
-    ];
+    const result =
+      layoutWrapOutline([piece]);
+
+    const cutBounds = calculateBounds(
+      result[0].cutOutline,
+    );
+
+    if (
+      result[0].bleedOutline === null
+    ) {
+      throw new Error(
+        "Expected a bleed outline",
+      );
+    }
+
+    const bleedBounds = calculateBounds(
+      result[0].bleedOutline,
+    );
+
+    expect(bleedBounds.minX).toBeCloseTo(0);
+    expect(bleedBounds.minY).toBeCloseTo(0);
+
+    expect(cutBounds.minX).toBeCloseTo(0.1);
+    expect(cutBounds.minY).toBeCloseTo(0.1);
+  });
+
+  it("stacks multiple pieces vertically", () => {
+    const firstPiece: WrapPiece = {
+      cutOutline: [
+        { x: 0, y: 0 },
+        { x: 2, y: 0 },
+        { x: 2, y: 2 },
+        { x: 0, y: 2 },
+      ],
+      bleedOutline: null,
+    };
+
+    const secondPiece: WrapPiece = {
+      cutOutline: [
+        { x: -5, y: -5 },
+        { x: -2, y: -5 },
+        { x: -2, y: -1 },
+        { x: -5, y: -1 },
+      ],
+      bleedOutline: null,
+    };
 
     const result = layoutWrapOutline([
       firstPiece,
@@ -44,11 +95,11 @@ describe("layoutWrapOutline", () => {
     ]);
 
     const firstBounds = calculateBounds(
-      result[0],
+      result[0].cutOutline,
     );
 
     const secondBounds = calculateBounds(
-      result[1],
+      result[1].cutOutline,
     );
 
     expect(firstBounds.minY).toBeCloseTo(0);
@@ -58,37 +109,34 @@ describe("layoutWrapOutline", () => {
       2.25,
     );
 
-    expect(secondBounds.maxY).toBeCloseTo(
-      6.25,
-    );
+    expect(secondBounds.minX).toBeCloseTo(0);
   });
 });
 
 describe("generateSvg", () => {
-  it("creates two polygons for the original bottle", () => {
-    const bodyGeometry = calculateWrapSegment({
-      topCircumference: 8.1,
-      bottomCircumference: 8.1,
-      height: 5.9,
+  it("creates named bleed and cut groups", () => {
+    const geometry = calculateWrapSegment({
+      topCircumference: 12,
+      bottomCircumference: 12,
+      height: 5,
     });
 
-    const shoulderGeometry =
-      calculateWrapSegment({
-        topCircumference: 3.4,
-        bottomCircumference: 8.1,
-        height: 0.85,
-      });
+    const outline =
+      generateWrapOutline(geometry);
 
-    const bodyOutline =
-      generateWrapOutline(bodyGeometry);
+    const piece = generateWrapPiece(
+      outline,
+      geometry,
+      0.1,
+      0.25,
+    );
 
-    const shoulderOutline =
-      generateWrapOutline(shoulderGeometry);
+    const svg = generateSvg([piece]);
 
-    const svg = generateSvg([
-      bodyOutline,
-      shoulderOutline,
-    ]);
+    expect(svg).toContain('<g id="bleed">');
+    expect(svg).toContain('<g id="cut">');
+    expect(svg).toContain('stroke="red"');
+    expect(svg).toContain('stroke="black"');
 
     const polygonCount =
       svg.split("<polygon").length - 1;
@@ -96,7 +144,7 @@ describe("generateSvg", () => {
     expect(polygonCount).toBe(2);
   });
 
-  it("creates one polygon for a straight segment in inches", () => {
+  it("skips the bleed polygon when bleed is zero", () => {
     const geometry = calculateWrapSegment({
       topCircumference: 12,
       bottomCircumference: 12,
@@ -106,17 +154,25 @@ describe("generateSvg", () => {
     const outline =
       generateWrapOutline(geometry);
 
-    const svg = generateSvg([outline]);
+    const piece = generateWrapPiece(
+      outline,
+      geometry,
+      0,
+      0,
+    );
+
+    const svg = generateSvg([piece]);
 
     const polygonCount =
       svg.split("<polygon").length - 1;
 
     expect(polygonCount).toBe(1);
-    expect(svg).toContain('width="12in"');
-    expect(svg).toContain('height="5in"');
+    expect(svg).not.toContain(
+      'stroke="red"',
+    );
   });
 
-  it("uses centimeters when centimeters are selected", () => {
+  it("uses inches by default", () => {
     const geometry = calculateWrapSegment({
       topCircumference: 12,
       bottomCircumference: 12,
@@ -126,8 +182,38 @@ describe("generateSvg", () => {
     const outline =
       generateWrapOutline(geometry);
 
+    const piece = generateWrapPiece(
+      outline,
+      geometry,
+      0,
+      0,
+    );
+
+    const svg = generateSvg([piece]);
+
+    expect(svg).toContain('width="12in"');
+    expect(svg).toContain('height="5in"');
+  });
+
+  it("uses centimeters when selected", () => {
+    const geometry = calculateWrapSegment({
+      topCircumference: 12,
+      bottomCircumference: 12,
+      height: 5,
+    });
+
+    const outline =
+      generateWrapOutline(geometry);
+
+    const piece = generateWrapPiece(
+      outline,
+      geometry,
+      0,
+      0,
+    );
+
     const svg = generateSvg(
-      [outline],
+      [piece],
       "cm",
     );
 
